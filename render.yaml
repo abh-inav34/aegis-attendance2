@@ -1,0 +1,54 @@
+# ── Render Blueprint ─────────────────────────────────────────────────────────
+# Deploy with:  connect your GitHub repo in the Render dashboard,
+#               then "New > Blueprint" and point it at this file.
+#
+# What this provisions:
+#   1. A PostgreSQL database (free tier)
+#   2. A Web Service running the Express + frontend Docker image
+#
+# Required secrets (set in Render dashboard → Environment):
+#   GROQ_API_KEY   — from https://console.groq.com
+#
+# Everything else is wired automatically via fromDatabase references.
+# ─────────────────────────────────────────────────────────────────────────────
+
+databases:
+  - name: aegis-db
+    databaseName: aegis_attendance
+    user: aegis_user
+    plan: free
+
+services:
+  - type: web
+    name: aegis-attendance
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /api/health
+
+    envVars:
+      - key: NODE_ENV
+        value: production
+
+      - key: PORT
+        value: 4000
+
+      # Render injects the internal connection string automatically
+      - key: DATABASE_URL
+        fromDatabase:
+          name: aegis-db
+          property: connectionString
+
+      # GROQ_API_KEY must be set manually in the Render dashboard
+      - key: GROQ_API_KEY
+        sync: false
+
+      - key: GROQ_MODEL
+        value: llama-3.3-70b-versatile
+
+      - key: CORS_ORIGIN
+        value: "*"
+
+    # Run Prisma migrations on every deploy before the server starts
+    buildCommand: "cd backend && npm ci"
+    startCommand: "cd backend && npx prisma migrate deploy && node src/index.js"

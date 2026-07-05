@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Attendance Analytics & Eligibility Prediction Agent</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <!-- Main Stylesheet -->
+  <link rel="stylesheet" href="styles.css">
+  <!-- Chart.js for data visualization -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Lucide Icons for clean SVG iconography -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- SheetJS for Excel/CSV Parsing -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+  
+  <div class="app-container">
+    
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <div class="brand-container">
+        <div class="brand-icon">
+          <i data-lucide="award"></i>
+        </div>
+        <div class="brand-name">Aegis Attendance</div>
+      </div>
+      
+      <nav style="flex-grow: 1;">
+        <ul class="nav-links">
+          <li>
+            <a class="nav-link active" data-tab="overview">
+              <i data-lucide="layout-dashboard"></i>
+              <span>Dashboard Overview</span>
+            </a>
+          </li>
+          <li>
+            <a class="nav-link" data-tab="students">
+              <i data-lucide="user-check"></i>
+              <span>Student Portal</span>
+            </a>
+          </li>
+          <li>
+            <a class="nav-link" data-tab="faculty">
+              <i data-lucide="users"></i>
+              <span>Faculty Portal</span>
+            </a>
+          </li>
+          <li>
+            <a class="nav-link" data-tab="config">
+              <i data-lucide="settings"></i>
+              <span>System Settings</span>
+            </a>
+          </li>
+        </ul>
+      </nav>
+      
+      <div class="sidebar-footer">
+        <div class="user-badge">
+          <div class="user-avatar">AD</div>
+          <div class="user-info">
+            <span class="user-name">Dr. A. Dutt</span>
+            <span class="user-role">Academic Dean</span>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Panel -->
+    <main class="main-content">
+      
+      <!-- Content Header -->
+      <header class="content-header">
+        <div class="page-title">
+          <h1 id="page-title-text">Dashboard Overview</h1>
+          <p id="page-subtitle-text">Institute-wide attendance analytics, predictions and compliance</p>
+        </div>
+        <div class="header-actions">
+          <button class="btn btn-secondary" id="btn-quick-notify">
+            <i data-lucide="bell"></i>
+            <span>Simulate Alert Feed</span>
+          </button>
+          <button class="btn btn-primary" id="btn-go-portal" onclick="switchTab('students')">
+            <i data-lucide="search"></i>
+            <span>Lookup Student</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- ==============================================
+           TAB: OVERVIEW
+           ============================================== -->
+      <section id="tab-overview" class="view-section active">
+        <!-- Metrics Row -->
+        <div class="metrics-grid">
+          <div class="glass-panel metric-card info">
+            <span class="metric-label">Total Student Strength</span>
+            <span class="metric-value" id="metric-total-students">0</span>
+            <span class="metric-trend up"><i data-lucide="trending-up"></i> Active Registry</span>
+          </div>
+          <div class="glass-panel metric-card success">
+            <span class="metric-label">Avg Attendance Rate</span>
+            <span class="metric-value" id="metric-avg-attendance">0%</span>
+            <span class="metric-trend" id="metric-avg-attendance-trend">Stable</span>
+          </div>
+          <div class="glass-panel metric-card success">
+            <span class="metric-label">Eligible Students (≥75%)</span>
+            <span class="metric-value" id="metric-eligible-count">0</span>
+            <span class="metric-trend text-muted" id="metric-eligible-pct">0% of total</span>
+          </div>
+          <div class="glass-panel metric-card danger">
+            <span class="metric-label">Deficit Students (<70%)</span>
+            <span class="metric-value" id="metric-risk-count">0</span>
+            <span class="metric-trend down" id="metric-risk-pct"><i data-lucide="alert-triangle"></i> 0% critical risk</span>
+          </div>
+        </div>
+
+        <!-- Dashboard Grid -->
+        <div class="dashboard-grid">
+          <!-- Department-wise comparison chart -->
+          <div class="glass-panel">
+            <div class="panel-header">
+              <div>
+                <h3 class="panel-title"><i data-lucide="bar-chart-3"></i> Department Attendance Comparison</h3>
+                <span class="panel-subtitle">Average attendance rate by department and stream</span>
+              </div>
+            </div>
+            <div class="chart-container">
+              <canvas id="chart-department"></canvas>
+            </div>
+          </div>
+          
+          <!-- Live Attendance Feed simulator & Eligibility distribution -->
+          <div class="glass-panel" style="display: flex; flex-direction: column;">
+            <div class="panel-header">
+              <div>
+                <h3 class="panel-title"><i data-lucide="activity"></i> Real-time Live Feed</h3>
+                <span class="panel-subtitle">Simulated check-ins and absence events</span>
+              </div>
+              <span class="badge badge-success" id="feed-live-status">LIVE</span>
+            </div>
+            <ul class="feed-list" id="live-attendance-feed">
+              <!-- Live events will append here -->
+            </ul>
+          </div>
+        </div>
+
+        <div class="dashboard-grid">
+          <!-- Eligibility distribution pie chart -->
+          <div class="glass-panel">
+            <div class="panel-header">
+              <div>
+                <h3 class="panel-title"><i data-lucide="pie-chart"></i> Eligibility Breakdown</h3>
+                <span class="panel-subtitle">Student categorization based on eligibility criteria</span>
+              </div>
+            </div>
+            <div class="chart-container" style="height: 250px;">
+              <canvas id="chart-eligibility"></canvas>
+            </div>
+          </div>
+
+          <!-- Quick System Guidelines -->
+          <div class="glass-panel">
+            <div class="panel-header">
+              <div>
+                <h3 class="panel-title"><i data-lucide="book-open"></i> System Rules & Guidelines</h3>
+                <span class="panel-subtitle">Academic policy for the current semester</span>
+              </div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 0.75rem; font-size: 0.85rem; color: var(--text-muted);">
+              <div style="display: flex; justify-content: space-between; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border-light);">
+                <span>Minimum Eligible Attendance</span>
+                <strong class="text-success text-bold">75.00%</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border-light);">
+                <span>Condoration / Borderline range</span>
+                <strong class="text-warning text-bold">70.00% - 74.99%</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border-light);">
+                <span>Detained / Not Eligible limit</span>
+                <strong class="text-danger text-bold">&lt; 70.00%</strong>
+              </div>
+              <div style="margin-top: 0.5rem; line-height: 1.45;">
+                <p><strong>Note:</strong> Students in the <em>Borderline</em> bracket may request a condoration medical review to qualify. All predictions estimate final percentage based on the remaining days of classes.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==============================================
+           TAB: STUDENTS
+           ============================================== -->
+      <section id="tab-students" class="view-section">
+        
+        <!-- Search and Selection Panel -->
+        <div class="glass-panel" style="margin-bottom: 2rem;">
+          <div class="filter-bar">
+            <div class="search-input-wrapper" style="flex-grow: 2;">
+              <i data-lucide="search"></i>
+              <input type="text" class="form-control" id="student-search-input" placeholder="Search Student by Name or ID...">
+            </div>
+            <div style="flex-grow: 1; min-width: 200px;">
+              <select class="form-control" id="student-select-dropdown">
+                <!-- Populated dynamically -->
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Student Detail Showcase Container -->
+        <div id="student-detail-container" style="display: none;">
+          
+          <!-- Profile Card -->
+          <div class="glass-panel">
+            <div class="profile-header-grid">
+              <div class="profile-avatar-details">
+                <div class="profile-avatar-large" id="student-avatar-letter">RK</div>
+                <div class="profile-meta-title">
+                  <h2 id="student-detail-name">Rahul Kumar</h2>
+                  <div class="profile-meta-sub">
+                    <span>ID: <strong id="student-detail-id">STU001</strong></span>
+                    <span>•</span>
+                    <span>Dept: <strong id="student-detail-dept">CSE</strong></span>
+                    <span>•</span>
+                    <span>Semester: <strong id="student-detail-sem">Semester 4</strong></span>
+                  </div>
+                </div>
+              </div>
+              <div id="student-detail-status-badge">
+                <span class="badge badge-success">ELIGIBLE</span>
+              </div>
+            </div>
+
+            <!-- Dashboard Columns for Student Details -->
+            <div class="student-detail-grid">
+              
+              <!-- Left Column: Attendance details, subject analysis -->
+              <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+                
+                <!-- Metrics Card -->
+                <div class="glass-panel" style="background: rgba(255, 255, 255, 0.01);">
+                  <h4 class="panel-title" style="margin-bottom: 1rem;"><i data-lucide="clipboard-check"></i> Overall Statistics</h4>
+                  <div style="display: flex; align-items: center; justify-content: space-around; gap: 1.5rem; flex-wrap: wrap;">
+                    
+                    <!-- Progress Circle -->
+                    <div class="progress-circle-container">
+                      <svg class="progress-circle-svg" width="140" height="140">
+                        <circle class="progress-circle-bg" cx="70" cy="70" r="65"></circle>
+                        <circle class="progress-circle-bar" id="student-progress-circle" cx="70" cy="70" r="65"></circle>
+                      </svg>
+                      <div class="progress-circle-text">
+                        <div class="progress-percent" id="student-overall-pct">0%</div>
+                        <div class="progress-label">Attendance</div>
+                      </div>
+                    </div>
+                    
+                    <!-- Text Stats -->
+                    <div style="display: flex; flex-direction: column; gap: 0.75rem; min-width: 150px;">
+                      <div style="display: flex; justify-content: space-between; font-size: 0.9rem;">
+                        <span class="text-muted">Total Working:</span>
+                        <strong id="student-stat-total">0 Days</strong>
+                      </div>
+                      <div style="display: flex; justify-content: space-between; font-size: 0.9rem;">
+                        <span class="text-muted">Days Present:</span>
+                        <strong id="student-stat-present" style="color: var(--color-success);">0 Days</strong>
+                      </div>
+                      <div style="display: flex; justify-content: space-between; font-size: 0.9rem;">
+                        <span class="text-muted">Days Absent:</span>
+                        <strong id="student-stat-absent" style="color: var(--color-danger);">0 Days</strong>
+                      </div>
+                      <div style="display: flex; justify-content: space-between; font-size: 0.9rem;">
+                        <span class="text-muted">Deficit in Days:</span>
+                        <strong id="student-stat-deficit" style="color: var(--color-warning);">0 Days</strong>
+                      </div>
+                    </div>
+                    
+                  </div>
+                </div>
+
+                <!-- Subject-wise Table -->
+                <div class="glass-panel" style="background: rgba(255, 255, 255, 0.01);">
+                  <h4 class="panel-title" style="margin-bottom: 1rem;"><i data-lucide="list-todo"></i> Subject-Wise Analysis</h4>
+                  <div class="table-container">
+                    <table class="custom-table">
+                      <thead>
+                        <tr>
+                          <th>Subject Name</th>
+                          <th>Classes Attended</th>
+                          <th>Attendance %</th>
+                          <th>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody id="student-subject-rows">
+                        <!-- Dynamic list of subject attendance -->
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+              </div>
+
+              <!-- Right Column: Predictions, Recovery plan, Trends & Insights -->
+              <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+                
+                <!-- Predictive Analytics -->
+                <div class="glass-panel" style="background: rgba(255, 255, 255, 0.01);">
+                  <h4 class="panel-title"><i data-lucide="sparkles"></i> AI Predictive Analysis</h4>
+                  <span class="panel-subtitle" style="display: block; margin-bottom: 1.25rem;">Projections based on historical attendance patterns and trends</span>
+                  
+                  <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; text-align: center; margin-bottom: 1.25rem;">
+                    <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-light); padding: 0.75rem; border-radius: var(--radius-md);">
+                      <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Expected Final %</div>
+                      <strong style="font-size: 1.25rem; font-family: var(--font-heading); color: var(--color-primary);" id="student-pred-pct">0%</strong>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-light); padding: 0.75rem; border-radius: var(--radius-md);">
+                      <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Eligibility Prob.</div>
+                      <strong style="font-size: 1.25rem; font-family: var(--font-heading); color: var(--color-success);" id="student-pred-prob">0%</strong>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-light); padding: 0.75rem; border-radius: var(--radius-md);">
+                      <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Risk Profile</div>
+                      <span id="student-pred-risk" style="display: block; font-weight: 700; font-size: 0.95rem; margin-top: 0.15rem;">LOW</span>
+                    </div>
+                  </div>
+
+                  <!-- Recovery Pathway -->
+                  <div class="alert-box" id="student-recovery-alert-box" style="margin-bottom: 0;">
+                    <i data-lucide="info" class="alert-icon" id="student-recovery-icon"></i>
+                    <div class="alert-content">
+                      <h4 id="student-recovery-title">Recovery Plan Required</h4>
+                      <p id="student-recovery-text">Loading pathway calculations...</p>
+                      
+                      <div class="recovery-grid" id="student-recovery-stats">
+                        <div class="recovery-stat-box">
+                          <div class="recovery-val" id="student-recovery-consec">0</div>
+                          <div class="recovery-desc">Consecutive classes to attend</div>
+                        </div>
+                        <div class="recovery-stat-box">
+                          <div class="recovery-val" id="student-recovery-rate">0%</div>
+                          <div class="recovery-desc">Min. attendance rate in remaining</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Trend Analysis Card -->
+                <div class="glass-panel" style="background: rgba(255, 255, 255, 0.01);">
+                  <div class="panel-header" style="margin-bottom: 0.75rem;">
+                    <h4 class="panel-title"><i data-lucide="trending-up"></i> Historical Weekly Trend</h4>
+                    <span class="badge" id="student-trend-badge">STABLE TREND</span>
+                  </div>
+                  
+                  <div class="chart-container" style="height: 150px; margin-bottom: 1rem;">
+                    <canvas id="chart-student-history"></canvas>
+                  </div>
+                  
+                  <div class="insights-list" id="student-insights-list">
+                    <!-- AI generated insights will be rendered here -->
+                  </div>
+                </div>
+
+              </div>
+
+            </div>
+
+            <!-- Dynamic Recommendation Box -->
+            <div class="recommendations-box">
+              <h4 class="recommendations-title"><i data-lucide="shield-alert"></i> Actionable AI Counsel</h4>
+              <ul class="rec-list" id="student-recommendation-list">
+                <!-- Populated dynamically -->
+              </ul>
+            </div>
+
+          </div>
+
+        </div>
+        
+        <!-- AI Chat Panel -->
+        <div class="glass-panel" id="ai-chat-panel" style="margin-top:2rem;">
+          <div class="panel-header">
+            <div>
+              <h3 class="panel-title"><i data-lucide="bot"></i> Aegis AI Agent Chat</h3>
+              <span class="panel-subtitle">Ask anything about this student's attendance, recovery, or predictions</span>
+            </div>
+            <span class="badge badge-success" id="ai-chat-status">GROQ POWERED</span>
+          </div>
+
+          <!-- Chat log -->
+          <div id="ai-chat-log" style="min-height:160px;max-height:320px;overflow-y:auto;display:flex;flex-direction:column;gap:0.75rem;padding:1rem;background:rgba(0,0,0,0.15);border-radius:var(--radius-md);margin-bottom:1rem;border:1px solid var(--border-light);">
+            <div class="chat-message assistant"><span class="chat-bubble">Hi! I'm Aegis AI. Ask me anything about this student's attendance, recovery plan, or predictions.</span></div>
+          </div>
+
+          <!-- Input row -->
+          <div style="display:flex;gap:0.75rem;">
+            <input type="text" class="form-control" id="ai-chat-input" placeholder="Ask Aegis AI… e.g. 'Can this student still recover?'" style="flex-grow:1;">
+            <button class="btn btn-primary" id="ai-chat-send" style="white-space:nowrap;">
+              <i data-lucide="send"></i>
+              <span>Send</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Empty State (No search results / select student prompt) -->
+        <div class="glass-panel" id="student-empty-state" style="text-align:center;padding:5rem 2rem;">
+          <i data-lucide="user-search" style="width:64px;height:64px;color:var(--text-muted);margin-bottom:1.5rem;"></i>
+          <h3>Find Student Attendance Profile</h3>
+          <p class="text-muted" style="max-width:400px;margin:0.5rem auto 1.5rem auto;font-size:0.9rem;">
+            Enter student credentials in the search bar above or choose a student record to review calculations, recovery pathways, and AI predictions.
+          </p>
+          <div style="display:flex;gap:0.5rem;justify-content:center;">
+            <button class="btn btn-primary btn-sm" onclick="selectFirstStudent()">View First Student</button>
+            <button class="btn btn-secondary btn-sm" onclick="switchTab('faculty')">Browse All Students</button>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ==============================================
+           TAB: FACULTY / ADMIN PORTAL
+           ============================================= -->
+      <section id="tab-faculty" class="view-section">
+        
+        <div class="faculty-grid">
+          
+          <!-- Left side: Students Registry Table -->
+          <div class="glass-panel">
+            <div class="panel-header">
+              <div>
+                <h3 class="panel-title"><i data-lucide="graduation-cap"></i> Student Registration Registry</h3>
+                <span class="panel-subtitle">Total records in active catalog</span>
+              </div>
+              <div style="display: flex; gap: 0.5rem;">
+                <button class="btn btn-secondary btn-sm" id="btn-notify-all-at-risk" style="padding: 0.5rem 1rem;">
+                  <i data-lucide="mail-warning"></i>
+                  <span>Notify All At-Risk</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Search, Filter bar for table -->
+            <div class="filter-bar">
+              <div class="search-input-wrapper" style="flex-grow: 2; min-width: 250px;">
+                <i data-lucide="search"></i>
+                <input type="text" class="form-control" id="faculty-search-input" placeholder="Search student records...">
+              </div>
+              <div style="flex-grow: 1; min-width: 150px;">
+                <select class="form-control" id="faculty-filter-dept">
+                  <option value="ALL">All Departments</option>
+                  <option value="CSE">Computer Science (CSE)</option>
+                  <option value="ECE">Electronics (ECE)</option>
+                  <option value="ME">Mechanical (ME)</option>
+                  <option value="IT">Information Tech (IT)</option>
+                  <option value="EEE">Electrical (EEE)</option>
+                </select>
+              </div>
+              <div style="flex-grow: 1; min-width: 150px;">
+                <select class="form-control" id="faculty-filter-status">
+                  <option value="ALL">All Statuses</option>
+                  <option value="ELIGIBLE">Eligible (≥75%)</option>
+                  <option value="BORDERLINE">Borderline (70% - 75%)</option>
+                  <option value="NOT_ELIGIBLE">Not Eligible (&lt;70%)</option>
+                  <option value="RISK_HIGH">Risk: HIGH</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Registry Table -->
+            <div class="table-container">
+              <table class="custom-table" id="registry-table">
+                <thead>
+                  <tr>
+                    <th>Student ID</th>
+                    <th>Name</th>
+                    <th>Department</th>
+                    <th style="text-align: right;">Attended / Total</th>
+                    <th style="text-align: right;">Percentage</th>
+                    <th>Eligibility Status</th>
+                    <th style="text-align: center;">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="faculty-registry-rows">
+                  <!-- Registry rows populated dynamically -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Right side: Bulk imports and notification templates -->
+          <div style="display: flex; flex-direction: column; gap: 2rem;">
+            
+            <!-- CSV/Excel Upload -->
+            <div class="glass-panel">
+              <div class="panel-header">
+                <div>
+                  <h3 class="panel-title"><i data-lucide="upload-cloud"></i> Bulk Attendance Feed Upload</h3>
+                  <span class="panel-subtitle">CSV or Excel spreadsheets importing</span>
+                </div>
+              </div>
+              
+              <div class="file-upload-area" id="drop-zone">
+                <i data-lucide="file-spreadsheet"></i>
+                <div>
+                  <p style="font-weight: 600; margin-bottom: 0.25rem;">Drag & drop spreadsheet here</p>
+                  <p class="text-muted" style="font-size: 0.75rem;">Supports .xlsx, .xls, .csv format</p>
+                </div>
+                <input type="file" id="file-uploader" accept=".xlsx, .xls, .csv" style="display: none;">
+                <button class="btn btn-secondary btn-sm" onclick="document.getElementById('file-uploader').click()">
+                  Browse Files
+                </button>
+              </div>
+              
+              <div style="margin-top: 1rem; background: rgba(255,255,255,0.02); padding: 0.85rem; border-radius: var(--radius-md); border: 1px solid var(--border-light); font-size: 0.75rem; color: var(--text-muted);">
+                <div style="font-weight: 600; margin-bottom: 0.5rem; color: var(--text-main); display: flex; align-items: center; gap: 0.25rem;">
+                  <i data-lucide="info" style="width: 14px; height: 14px; color: var(--color-primary);"></i>
+                  Expected Column Layout
+                </div>
+                <p style="margin-bottom: 0.5rem; line-height: 1.3;">Spreadsheet columns should include: <strong>Student ID, Student Name, Department, Semester, Total Days, Present Days, Absent Days</strong></p>
+                <a href="#" class="student-list-item-link" id="download-sample-template" style="font-size: 0.75rem; display: inline-flex; align-items: center; gap: 0.25rem;">
+                  <i data-lucide="download" style="width: 12px; height: 12px;"></i>
+                  Download Sample CSV Template
+                </a>
+              </div>
+            </div>
+
+            <!-- Notifications Center simulator -->
+            <div class="glass-panel">
+              <div class="panel-header">
+                <div>
+                  <h3 class="panel-title"><i data-lucide="messages-square"></i> Communication Channels</h3>
+                  <span class="panel-subtitle">Faculty broadcast dispatch configurations</span>
+                </div>
+              </div>
+              
+              <div style="display: flex; flex-direction: column; gap: 1rem;">
+                <div style="display: flex; gap: 0.75rem; align-items: center; background: rgba(255,255,255,0.02); padding: 0.75rem; border-radius: var(--radius-md); border: 1px solid var(--border-light);">
+                  <i data-lucide="mail" style="color: var(--color-primary); width: 24px; height: 24px;"></i>
+                  <div style="flex-grow: 1;">
+                    <div style="font-size: 0.85rem; font-weight: 600;">Email Advisories</div>
+                    <div style="font-size: 0.7rem; color: var(--text-muted);">Auto-trigger official warnings on <65% threshold</div>
+                  </div>
+                  <label class="switch-container" style="position: relative; display: inline-block; width: 44px; height: 22px;">
+                    <input type="checkbox" id="toggle-email-alerts" checked style="opacity: 0; width: 0; height: 0;">
+                    <span class="slider-toggle-btn" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(255,255,255,0.15); border-radius: 34px; transition: .3s;"></span>
+                  </label>
+                </div>
+                
+                <div style="display: flex; gap: 0.75rem; align-items: center; background: rgba(255,255,255,0.02); padding: 0.75rem; border-radius: var(--radius-md); border: 1px solid var(--border-light);">
+                  <i data-lucide="phone-call" style="color: #25d366; width: 24px; height: 24px;"></i>
+                  <div style="flex-grow: 1;">
+                    <div style="font-size: 0.85rem; font-weight: 600;">WhatsApp Notifications</div>
+                    <div style="font-size: 0.7rem; color: var(--text-muted);">Direct message alerts sent to guardian mobile logs</div>
+                  </div>
+                  <label class="switch-container" style="position: relative; display: inline-block; width: 44px; height: 22px;">
+                    <input type="checkbox" id="toggle-whatsapp-alerts" checked style="opacity: 0; width: 0; height: 0;">
+                    <span class="slider-toggle-btn" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(255,255,255,0.15); border-radius: 34px; transition: .3s;"></span>
+                  </label>
+                </div>
+
+                <div style="background: rgba(255, 255, 255, 0.01); border: 1px dashed var(--border-light); padding: 1rem; border-radius: var(--radius-md); font-size: 0.8rem;">
+                  <span style="font-weight: 600; color: var(--text-main); display: block; margin-bottom: 0.5rem;">Broadcast Warning Template:</span>
+                  <p class="text-muted" style="line-height: 1.45; italic: true;">
+                    "Dear [Student Name], your current overall attendance is [Attendance]%, which is below the minimum threshold. You need to attend [Classes] consecutive classes to become eligible for final semester examinations. Please consult your supervisor immediately."
+                  </p>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+      </section>
+
+      <!-- ==============================================
+           TAB: CONFIGURATION
+           ============================================= -->
+      <section id="tab-config" class="view-section">
+        
+        <div class="glass-panel" style="max-width: 900px; margin: 0 auto;">
+          <div class="panel-header">
+            <div>
+              <h3 class="panel-title"><i data-lucide="sliders"></i> Threshold Configurations</h3>
+              <span class="panel-subtitle">Manage institutional parameters and rule parameters</span>
+            </div>
+            <button class="btn btn-secondary btn-sm" id="btn-reset-default-db">
+              <i data-lucide="rotate-ccw"></i>
+              <span>Restore Mock Database</span>
+            </button>
+          </div>
+
+          <div style="display: flex; flex-direction: column;">
+            
+            <!-- Threshold slider -->
+            <div class="config-setting-row">
+              <div class="config-label-block">
+                <span class="config-label-title">Minimum Attendance Threshold</span>
+                <span class="config-label-desc">Calculates the default eligibility of examinations (typically 75% for national university accreditation councils).</span>
+              </div>
+              <div class="config-control-block">
+                <input type="range" id="config-threshold-range" min="60" max="90" value="75" step="1">
+                <span class="config-value-display" id="config-threshold-val">75%</span>
+              </div>
+            </div>
+
+            <!-- Condoration Borderline limit slider -->
+            <div class="config-setting-row">
+              <div class="config-label-block">
+                <span class="config-label-title">Borderline Condoration Limit</span>
+                <span class="config-label-desc">Determines the lower margin for borderline eligibility. Attendance percentages inside this range are flagged as "Borderline".</span>
+              </div>
+              <div class="config-control-block">
+                <input type="range" id="config-borderline-range" min="60" max="74" value="70" step="1">
+                <span class="config-value-display" id="config-borderline-val">70%</span>
+              </div>
+            </div>
+
+            <!-- Critical Risk warning alert slider -->
+            <div class="config-setting-row">
+              <div class="config-label-block">
+                <span class="config-label-title">Critical Alert Threshold</span>
+                <span class="config-label-desc">Flags high risk attendance conditions. Any percentage below this value automatically triggers critical action recommendations and emails.</span>
+              </div>
+              <div class="config-control-block">
+                <input type="range" id="config-critical-range" min="50" max="70" value="65" step="1">
+                <span class="config-value-display" id="config-critical-val">65%</span>
+              </div>
+            </div>
+
+            <!-- Real-time Live Event Simulator Toggler -->
+            <div class="config-setting-row">
+              <div class="config-label-block">
+                <span class="config-label-title">Real-time Check-In Simulation</span>
+                <span class="config-label-desc">Simulates a live feed of student entries on the main dashboard for demonstration purposes. Event updates occur every 15-20 seconds.</span>
+              </div>
+              <div class="config-control-block">
+                <label class="switch-container" style="position: relative; display: inline-block; width: 44px; height: 22px;">
+                  <input type="checkbox" id="toggle-live-simulation" checked style="opacity: 0; width: 0; height: 0;">
+                  <span class="slider-toggle-btn" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(255,255,255,0.15); border-radius: 34px; transition: .3s;"></span>
+                </label>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </section>
+
+    </main>
+
+  </div>
+
+  <!-- Toast Notification Center -->
+  <div class="toast-container" id="toast-notification-container">
+    <!-- Dyn toasts -->
+  </div>
+
+  <!-- Notification Style helpers (injected directly to bypass stylesheet delays) -->
+  <style>
+    /* Styling for toggle switch */
+    .switch-container input:checked + .slider-toggle-btn {
+      background-color: var(--color-primary);
+    }
+    .switch-container input:checked + .slider-toggle-btn:before {
+      transform: translateX(20px);
+    }
+    .slider-toggle-btn:before {
+      position: absolute;
+      content: "";
+      height: 16px;
+      width: 16px;
+      left: 4px;
+      bottom: 3px;
+      background-color: white;
+      border-radius: 50%;
+      transition: .3s;
+    }
+    .text-bold { font-weight: 700; }
+    .text-success { color: var(--color-success) !important; }
+    .text-warning { color: var(--color-warning) !important; }
+    .text-danger { color: var(--color-danger) !important; }
+  </style>
+
+  <!-- API base URL
+       Dev:        set to http://localhost:4000 here
+       Production: leave empty — the frontend is served by the same Express
+                   server so /api/* calls hit the same origin automatically  -->
+  <script>
+    window.AEGIS_API_URL = window.location.hostname === 'localhost' ? 'http://localhost:4000' : '';
+  </script>
+
+  <!-- Load Database and Application logic -->
+  <script src="mockData.js"></script>
+  <script src="api.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

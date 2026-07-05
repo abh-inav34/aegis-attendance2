@@ -1,0 +1,13 @@
+{
+  "name": "attedence",
+  "version": "1.0.0",
+  "description": "AI-powered student attendance analytics, eligibility prediction, and recovery planning.",
+  "main": "api.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs"
+}

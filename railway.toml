@@ -1,0 +1,31 @@
+# ── Railway config ───────────────────────────────────────────────────────────
+# Deploy with:
+#   1. railway login
+#   2. railway init   (in this directory)
+#   3. railway up
+#
+# Add a PostgreSQL plugin in the Railway dashboard, then set:
+#   DATABASE_URL  → Railway auto-injects this when you attach the plugin
+#   GROQ_API_KEY  → set in Railway → Variables
+#
+# Railway reads this file automatically on deploy.
+# ─────────────────────────────────────────────────────────────────────────────
+
+[build]
+  builder       = "DOCKERFILE"
+  dockerfilePath = "Dockerfile"
+
+[deploy]
+  startCommand  = "node src/index.js"
+  healthcheckPath = "/api/health"
+  healthcheckTimeout = 300
+  restartPolicyType = "ON_FAILURE"
+  restartPolicyMaxRetries = 3
+
+[[services]]
+  name = "aegis-attendance"
+
+  [services.env]
+    NODE_ENV   = "production"
+    PORT       = "4000"
+    GROQ_MODEL = "llama-3.3-70b-versatile"
